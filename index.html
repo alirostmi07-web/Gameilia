@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>گیم ایلیا</title>
+<style>
+  body{font-family:Vazirmatn, sans-serif;background:#071029;color:#fff;padding:12px;margin:0}
+  .card{background:#071f36;padding:12px;border-radius:10px;margin-bottom:10px}
+  .row{display:flex;justify-content:space-between;align-items:center}
+  button{background:#06b6d4;border:0;padding:8px 10px;border-radius:8px;color:#021022}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .logo{font-weight:900;color:#06b6d4}
+  .search input{padding:8px;border-radius:8px;border:0;background:#032032;color:#fff}
+  .products{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  .product img{width:100%;border-radius:8px;height:100px;object-fit:cover}
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">گیم ایلیا</div>
+    <div class="search"><input id="q" placeholder="جستجو..."></div>
+  </header>
+  <main id="main">
+    <div id="products" class="products"></div>
+  </main>
+  <div style="position:fixed;left:12px;bottom:12px">
+    <button onclick="openCart()">🛒 <span id="count">0</span></button>
+  </div>
+
+  <div id="cartPanel" style="display:none;position:fixed;right:12px;bottom:12px;background:#001828;padding:12px;border-radius:10px;width:320px;max-width:90%">
+    <h3>سبد خرید</h3>
+    <div id="cartItems"></div>
+    <div id="total"></div>
+    <button onclick="checkout()">پرداخت</button>
+  </div>
+
+<script>
+let products = [];
+let cart = JSON.parse(localStorage.getItem('cart'))||[];
+function format(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+async function load(){
+  const res = await fetch('/api/products');
+  products = await res.json();
+  renderProducts(products);
+  renderCart();
+}
+function renderProducts(list){
+  const el = document.getElementById('products');
+  el.innerHTML = '';
+  list.forEach(p=>{
+    const d = document.createElement('div');
+    d.className='card';
+    d.innerHTML = `<img src="${p.images && p.images[0] ? p.images[0] : 'https://via.placeholder.com/300x200'}"><h4>${p.title}</h4><div>${p.platform}</div><div style="color:#06b6d4">${format(p.price)} تومان</div><div style="display:flex;gap:6px;margin-top:6px"><button onclick="add('${p._id}')">افزودن</button><button onclick="view('${p.slug}')">مشاهده</button></div>`;
+    el.appendChild(d);
+  });
+}
+function add(id){
+  const pr = products.find(p=>p._id===id);
+  const it = cart.find(i=>i.productId===id);
+  if(it) it.qty++; else cart.push({productId:id, qty:1});
+  localStorage.setItem('cart', JSON.stringify(cart));
+  renderCart();
+}
+function renderCart(){
+  document.getElementById('count').innerText = cart.reduce((s,i)=>s+i.qty,0);
+  const itemsEl = document.getElementById('cartItems');
+  itemsEl.innerHTML = '';
+  let total=0;
+  cart.forEach(ci=>{
+    const p = products.find(x=>x._id===ci.productId);
+    if(!p) return;
+    total += p.price * ci.qty;
+    const div = document.createElement('div');
+    div.innerHTML = `<div style="display:flex;justify-content:space-between"><div>${p.title} × ${ci.qty}</div><div>${format(p.price*ci.qty)}</div></div>`;
+    itemsEl.appendChild(div);
+  });
+  document.getElementById('total').innerText = 'جمع: ' + format(total) + ' تومان';
+}
+function openCart(){ document.getElementById('cartPanel').style.display='block' }
+function checkout(){
+  if(cart.length===0){ alert('سبد خرید خالی است'); return; }
+  const buyer = {name: 'مهمان', phone:''};
+  fetch('/api/checkout', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cart, buyer})})
+  .then(r=>r.json()).then(js=>{
+    if(js.paymentUrl){ window.location.href = js.paymentUrl; } else { alert('خطا در ساخت پرداخت'); console.log(js); }
+  }).catch(e=>alert('خطا: '+e.message));
+}
+function view(slug){ window.location.href = '/product.html?slug='+encodeURIComponent(slug) }
+document.getElementById('q').addEventListener('input', (e)=>{
+  const q=e.target.value.toLowerCase();
+  renderProducts(products.filter(p=>p.title.toLowerCase().includes(q) || (p.platform||'').toLowerCase().includes(q)));
+});
+load();
+</script>
+</body>
+</html>

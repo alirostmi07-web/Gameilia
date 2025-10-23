@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>محصول</title></head><body style="font-family:Vazirmatn;margin:12px;background:#071029;color:#fff">
+  <div id="app"></div>
+<script>
+async function load(){
+  const params = new URLSearchParams(location.search);
+  const slug = params.get('slug');
+  const res = await fetch('/api/products/' + slug);
+  if(!res.ok){ document.getElementById('app').innerText = 'محصول یافت نشد'; return; }
+  const p = await res.json();
+  document.getElementById('app').innerHTML = `<h2>${p.title}</h2><div>قیمت: ${p.price.toLocaleString()} تومان</div><div>پلتفرم: ${p.platform}</div><div>حجم: ${p.size||'-'}</div><p>${p.description||''}</p><button onclick="add('${p._id}')">افزودن به سبد</button>`;
+  window.addToCart = function(id){ const cart = JSON.parse(localStorage.getItem('cart'))||[]; const it = cart.find(i=>i.productId===id); if(it) it.qty++; else cart.push({productId:id,qty:1}); localStorage.setItem('cart', JSON.stringify(cart)); alert('به سبد اضافه شد'); }
+}
+load();
+</script>
+</body></html>
